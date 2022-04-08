@@ -51,7 +51,7 @@ plot(density(sigma_sq))
 
 # 2.b)
 G = 2*pnorm(sqrt(sigma_sq/2)) - 1
-
+plot(density(G))
 
 # 2.c)
 cdf = ecdf(G)
@@ -59,13 +59,12 @@ quantile(cdf,0.025)
 quantile(cdf,0.975)
 
 # 2.d)
-plot(density(G))
 density = density(G)
 densities = sort(density(G)[["y"]],decreasing=TRUE)
 
 density_sum = sum(densities)
 cumulative_sum = cumsum(densities)
-# searching for the index of the values such that the cumulative sum is less than 95% of total sum
+# searching for the index of the values in the ordered density data such that the cumulative sum of is less than 95% of total sum
 h_index = order(density$y,decreasing=TRUE)[1:length(cumulative_sum[cumulative_sum < 0.95 * density_sum])]
 
 min(density$x[h_index])
@@ -73,7 +72,7 @@ max(density$x[h_index])
 
 
 # 3.a)
-# p(??|y, µ) ??? p(y|µ, ??) * p(??)
+# p(??|y, ?) ??? p(y|?, ??) * p(??)
 x = c(1.83, 2.02, 2.33, -2.79, 2.07, 2.02, -2.44, 2.14, 2.54, 2.23)
 lambda = 1
 kappas = seq(0.01, 10, 0.01)
@@ -86,8 +85,7 @@ for (kappa in seq(0.01, 10, 0.01)){
   prior = append(prior, lambda * exp(-lambda * kappa))
 }
 posterior = likelihood * prior
-plot(posterior)
-plot(kappas,posterior/(sum(posterior)*0.01))
+plot(kappas,posterior/(sum(posterior)*0.01), ylab="Posterior probability", xlab="Kappa", type="l")
 
 # 3.b)
 kappas[which.max(posterior)]
