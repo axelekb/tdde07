@@ -80,4 +80,63 @@ lines(data$time, top_95, col="blue")
 # derivate of f_time w.r.t. time: B1 + 2B2*time = 0 => time = -B1/2B2
 plot(density(-365*draws$betas[,2]/(2*draws$betas[,3])), xlab='x_tilde * 365', main='x_tilde posterior distribution')
 
+#2a
+library(mvtnorm)
+set.seed(12345)
+data = read.csv("WomenAtWork.dat", header = TRUE, sep = "")
+t = 5
+Npar = 7 #matrix size
+Sigma = t^2*diag(Npar)
+X = as.matrix(data[,-1]) #all rows not first col
+nDraws = 1000
+mu <- as.matrix(rep(0,Npar))
+initVal = matrix(0, Npar, 1)
+y = data$Work
 
+LogPostLogistic <- function(betas,y,X,mu,Sigma){ #from lecture
+  linPred <- X%*%betas;
+  logLik <- sum( linPred*y - log(1 + exp(linPred)) );
+  #if (abs(logLik) == Inf) logLik = -20000; # Likelihood is not finite, stear the optimizer away from here!
+  logPrior <- dmvnorm(betas, mu, Sigma, log=TRUE);
+  
+  return(logLik + logPrior)
+}
+
+betas = rmvnorm(nDraws, mu, t*diag(Npar))
+betaPrior = dmvnorm(X, mu, prior_sigma)
+#par = posterior mode
+optimRes = optim(initVal,LogPostLogistic, gr=NULL, y, X,mu, Sigma, method=c("BFGS"), control=list(fnscale=-1), hessian=TRUE)
+#names(optimRes$par) = colnames(X)
+JInv = solve(-optimRes$hessian)
+beta_tilde = optimRes$par
+betas_posterior = rmvnorm(nDraws, beta_tilde, JInv)
+
+#95% for NSmallChild
+bottom_95_child = quantile(betas_posterior[,6],0.025)
+top_95_child = quantile(betas_posterior[,6],0.975)
+
+glm.model = glm(Work~0+., data = data, family = binomial)
+
+#b
+set.seed(12345)
+X_43 = c(1, 20, 12, 8, 43, 1, 1) #woman described in lab
+probs_woman <- function(X, nDraws, beta_tilde, JInv) {
+  betas_posterior = rmvnorm(nDraws, beta_tilde, JInv)
+  probs = exp(t(X_43) %*% t(betas_posterior)) / (1 + exp(t(X_43) %*% t(betas_posterior)))
+  return(probs)
+}
+
+probs = probs_woman(X_43, nDraws, beta_tilde, JInv)
+plot(density(probs))
+
+#c
+set.seed(12345)
+women_working <- function(X, nDraws, beta_tilde, JInv) {
+  betas_posterior = rmvnorm(nDraws, beta_tilde, JInv)
+  probs = exp(t(X_43) %*% t(betas_posterior)) / (1 + exp(t(X_43) %*% t(betas_posterior)))
+  probs_avg = mean(probs)
+  women_working = rbinom(nDraws, 11, probs_avg)
+  return(women_working)
+}
+women_working = women_working(X, nDraws, beta_tilde, JInv)
+plot(hist(women_working))
