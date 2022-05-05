@@ -1,5 +1,5 @@
 set.seed(12345)
-setwd('\\\\ad.liu.se/home/axeek668/TDDE07')
+setwd('C:/Users/Gustaf/OneDrive/Dokument/tdde07')
 library(coda)
 
 #1
@@ -85,7 +85,7 @@ LogPostPoisson <- function(betas,y,X,mu,Sigma){ #from lecture
   return(logLik + logPrior)
   }
   
-optimRes = optim(initVal,LogPostPoisson, gr=NULL, y, X,mu, Sigma, method=c("BFGS"), control=list(fnscale=-1), hessian=TRUE)
+optimRes = optim(initVal,LogPostPoisson, gr=NULL, y, X, mu, Sigma, method=c("BFGS"), control=list(fnscale=-1), hessian=TRUE)
 
 beta_tilde = optimRes$par
 JInv = solve(-optimRes$hessian)
@@ -95,3 +95,34 @@ betas_posterior = rmvnorm(nDraws, beta_tilde, JInv)
 plot(density(betas_posterior[,9]))
 
 #c
+
+LogPostPoisson <- function(theta,y,X,mu,Sigma){ #from lecture
+  linPred <- (X%*%t(theta));
+  logLik <- sum(y*linPred- exp(linPred))
+  logPrior <- dmvnorm(theta, mu, Sigma, log=TRUE);
+  
+  return(logLik + logPrior)
+}
+metropolisRandomWalk <- function(c, SIGMA, fcn, ...) { #... = y, X, mu
+  theta = matrix(0,1,9);
+  theta_matrix = matrix(0, 9, nDraws)
+  for (i in 1:nDraws) {
+    theta_proposal = rmvnorm(1, theta, c*SIGMA) #step 1
+    
+    logPost_old = fcn(theta, ...) #step 2
+    logPost_new = fcn(theta_proposal, ...) # pass them here
+    alpha = min(1, exp(logPost_old - logPost_new))
+    
+    comparer = runif(1,0,1) #step 3
+    if (alpha < comparer) { 
+      theta = theta_proposal
+    }
+    theta_matrix[,i] = theta
+  }
+  return (theta_matrix)
+  
+}
+mu = matrix(0, 9, 1)
+Sigma = 100 * solve(t(X)%*%X)
+betas = metropolisRandomWalk(1, JInv, LogPostPoisson, y, X, mu, Sigma)
+plot(betas[9,], type="l") #plot 9th row (MinBidShare)
