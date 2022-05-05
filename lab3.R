@@ -1,5 +1,5 @@
 set.seed(12345)
-setwd("/home/gusli281/Documents/tdde07/lab3/")
+setwd('C:\\Users\\Gustaf\\OneDrive\\Dokument\\tdde07')
 library(coda)
 
 #1
@@ -61,3 +61,19 @@ for (i in 100:nDraws) {
 plot(density(exp(simulated_draws)), col = "red", xlim = c(-5, 60))
 lines(density(data))
 
+#2
+ebay_data = read.csv("eBayNumberOfBidderData.dat", header = TRUE, sep = "")
+
+#a
+beta_model = glm(formula=nBids ~ PowerSeller + VerifyID + Sealed + Minblem + MajBlem + LargNeg + LogBook + MinBidShare, data=ebay_data, family=poisson())
+
+#b
+nDraws = 1000
+library(mvtnorm)
+#prior draws
+X = as.matrix(ebay_data[,-1])
+temp = 100 * solve(t(X)%*%X)
+zeros = matrix(0, 9, 1)
+beta_prior = rmvnorm(nDraws, zeros, temp)
+
+optimRes = optim(initVal,LogPostLogistic, gr=NULL, y, X,mu, Sigma, method=c("BFGS"), control=list(fnscale=-1), hessian=TRUE)
