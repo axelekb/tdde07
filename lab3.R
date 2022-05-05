@@ -1,5 +1,5 @@
 set.seed(12345)
-setwd('C:\\Users\\Gustaf\\OneDrive\\Dokument\\tdde07')
+setwd('\\\\ad.liu.se/home/axeek668/TDDE07')
 library(coda)
 
 #1
@@ -68,12 +68,30 @@ ebay_data = read.csv("eBayNumberOfBidderData.dat", header = TRUE, sep = "")
 beta_model = glm(formula=nBids ~ PowerSeller + VerifyID + Sealed + Minblem + MajBlem + LargNeg + LogBook + MinBidShare, data=ebay_data, family=poisson())
 
 #b
-nDraws = 1000
 library(mvtnorm)
 #prior draws
 X = as.matrix(ebay_data[,-1])
-temp = 100 * solve(t(X)%*%X)
-zeros = matrix(0, 9, 1)
-beta_prior = rmvnorm(nDraws, zeros, temp)
+y = ebay_data$nBids
+Sigma = 100 * solve(t(X)%*%X)
+mu = matrix(0, 9, 1)
+initVal = numeric(9)
+  
+  
+LogPostPoisson <- function(betas,y,X,mu,Sigma){ #from lecture
+  linPred <- (X%*%betas);
+  logLik <- sum(y*linPred- exp(linPred))
+  logPrior <- dmvnorm(betas, mu, Sigma, log=TRUE);
+  
+  return(logLik + logPrior)
+  }
+  
+optimRes = optim(initVal,LogPostPoisson, gr=NULL, y, X,mu, Sigma, method=c("BFGS"), control=list(fnscale=-1), hessian=TRUE)
 
-optimRes = optim(initVal,LogPostLogistic, gr=NULL, y, X,mu, Sigma, method=c("BFGS"), control=list(fnscale=-1), hessian=TRUE)
+beta_tilde = optimRes$par
+JInv = solve(-optimRes$hessian)
+
+nDraws = 1000
+betas_posterior = rmvnorm(nDraws, beta_tilde, JInv)
+plot(density(betas_posterior[,9]))
+
+#c
