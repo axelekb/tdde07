@@ -1,5 +1,5 @@
 set.seed(12345)
-setwd('C:/Users/Gustaf/OneDrive/Dokument/tdde07')
+setwd('C:/Users/ekblo/LiU/tdde07')
 library(coda)
 
 #1
@@ -103,18 +103,20 @@ LogPostPoisson <- function(theta,y,X,mu,Sigma){ #from lecture
   
   return(logLik + logPrior)
 }
+
 metropolisRandomWalk <- function(c, SIGMA, fcn, ...) { #... = y, X, mu
-  theta = matrix(0,1,9);
-  theta_matrix = matrix(0, 9, nDraws)
+  n_param = as.numeric(dim(SIGMA)[1])
+  theta = matrix(0,1,n_param);
+  theta_matrix = matrix(0, n_param, nDraws)
   for (i in 1:nDraws) {
     theta_proposal = rmvnorm(1, theta, c*SIGMA) #step 1
     
     logPost_old = fcn(theta, ...) #step 2
     logPost_new = fcn(theta_proposal, ...) # pass them here
-    alpha = min(1, exp(logPost_old - logPost_new))
+    alpha = min(1, exp(logPost_new - logPost_old))
     
     comparer = runif(1,0,1) #step 3
-    if (alpha < comparer) { 
+    if (alpha >= comparer) { 
       theta = theta_proposal
     }
     theta_matrix[,i] = theta
@@ -122,7 +124,11 @@ metropolisRandomWalk <- function(c, SIGMA, fcn, ...) { #... = y, X, mu
   return (theta_matrix)
   
 }
+set.seed(12345)
+nDraws = 1000
 mu = matrix(0, 9, 1)
+X = as.matrix(ebay_data[,-1])
+y = ebay_data$nBids
 Sigma = 100 * solve(t(X)%*%X)
 betas = metropolisRandomWalk(1, JInv, LogPostPoisson, y, X, mu, Sigma)
 plot(betas[9,], type="l") #plot 9th row (MinBidShare)
