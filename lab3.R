@@ -1,5 +1,5 @@
 set.seed(12345)
-setwd('C:\\Users\\Gustaf\\OneDrive\\Dokument\\tdde07')
+setwd('/home/axeek668/TDDE07')
 library(coda)
 
 #1
@@ -159,7 +159,7 @@ ar_process <- function(phi) {
   X = c()
   X[1] = mu
   for (i in 2:T) {
-    X[i] = mu + phi * (X[i-1] - mu) + rnorm(1, 0, sigma_sqr)
+    X[i] = mu + phi * (X[i-1] - mu) + rnorm(1, 0, sqrt(sigma_sqr))
   }
   return(X)
 }
@@ -187,25 +187,40 @@ parameters {
   
 }
 model {
-  mu ~ normal(0,100); // Normal with mean 0, st.dev. 100
+  mu ~ normal(0,10); // Normal with mean 0, st.dev. 100
   sigma_sqr ~ scaled_inv_chi_square(1,2); // Scaled-inv-chi2 with nu 1,sigma 2
   for(i in 2:T){
     y[i] ~ normal(mu + phi*y[i-1], sqrt(sigma_sqr));
   }
 }'
 
-data <- list(N=T, y=y)
+data_1 <- list(T=T, y=x)
 warmup <- 1000
 niter <- 2000
-fit <- stan(model_code=StanModel, data=data, warmup=warmup,iter=niter,chains=4)
+fit_x <- stan(model_code=StanModel, data=data_1, warmup=warmup,iter=niter,chains=4)
 # Print the fitted model
-print(fit,digits_summary=3)
+print(fit_x,digits_summary=3)
+
+data_2 <- list(T=T, y=y)
+fit_y <- stan(model_code=StanModel, data=data_2, warmup=warmup,iter=niter,chains=4)
+# Print the fitted model
+print(fit_y,digits_summary=3)
+
+
+#c
 # Extract posterior samples
-postDraws <- extract(fit)
+postDraws_x <- extract(fit_x)
+postDraws_y <- extract(fit_y)
+
 # Do traceplots of the first chain
+#plot joint posterior
 par(mfrow = c(1,1))
-plot(postDraws$mu[1:(niter-warmup)],type="l",ylab="mu",main="Traceplot")
+
+plot(postDraws_x$mu, postDraws_x$phi)
+
+plot(postDraws_x$mu)
+plot(postDraws_x$phi)
+
+
 # Do automatic traceplots of all chains
-traceplot(fit)
-# Bivariate posterior plots
-pairs(fit)
+traceplot(fit_x)
