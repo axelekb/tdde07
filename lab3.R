@@ -1,5 +1,5 @@
 set.seed(12345)
-setwd('C:/Users/ekblo/LiU/tdde07')
+setwd('C:\\Users\\Gustaf\\OneDrive\\Dokument\\tdde07')
 library(coda)
 
 #1
@@ -132,3 +132,80 @@ y = ebay_data$nBids
 Sigma = 100 * solve(t(X)%*%X)
 betas = metropolisRandomWalk(1, JInv, LogPostPoisson, y, X, mu, Sigma)
 plot(betas[9,], type="l") #plot 9th row (MinBidShare)
+
+#d
+
+Xd = matrix(c(1, 1, 0, 1, 0, 1, 0, 1.2, 0.8), 9, 1)
+nBidders = c()
+count = 0
+for (i in 1:nDraws) {
+  nBidders[i] = rpois(1, exp(Xd%*%t(betas[,i])))
+
+}
+length(nBidders[nBidders < 1]) / nDraws
+max(nBidders)
+plot(hist(nBidders, breaks=10))
+library(ggplot2)
+qplot(nBidders, geom="histogram")
+
+#3
+#a
+mu = 13
+sigma_sqr = 3
+T = 300
+phi = 0.1
+
+ar_process <- function(phi) {
+  X = c()
+  X[1] = mu
+  for (i in 2:T) {
+    X[i] = mu + phi * (X[i-1] - mu) + rnorm(1, 0, sigma_sqr)
+  }
+  return(X)
+}
+
+X = ar_process(-0.0001)
+plot(X)
+
+
+#b
+x = ar_process(0.2)
+y = ar_process(0.95)
+
+library(rstan)
+#StanModel = stan_model('3d.stan')
+
+StanModel = 'data {
+  int<lower=0> T; //number of observations
+  vector[T] y;
+}
+
+parameters {
+  real<lower=-1, upper=1> phi;
+  real mu;
+  real<lower=0> sigma_sqr;
+  
+}
+model {
+  mu ~ normal(0,100); // Normal with mean 0, st.dev. 100
+  sigma_sqr ~ scaled_inv_chi_square(1,2); // Scaled-inv-chi2 with nu 1,sigma 2
+  for(i in 2:T){
+    y[i] ~ normal(mu + phi*y[i-1], sqrt(sigma_sqr));
+  }
+}'
+
+data <- list(N=T, y=y)
+warmup <- 1000
+niter <- 2000
+fit <- stan(model_code=StanModel, data=data, warmup=warmup,iter=niter,chains=4)
+# Print the fitted model
+print(fit,digits_summary=3)
+# Extract posterior samples
+postDraws <- extract(fit)
+# Do traceplots of the first chain
+par(mfrow = c(1,1))
+plot(postDraws$mu[1:(niter-warmup)],type="l",ylab="mu",main="Traceplot")
+# Do automatic traceplots of all chains
+traceplot(fit)
+# Bivariate posterior plots
+pairs(fit)
