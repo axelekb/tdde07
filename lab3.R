@@ -1,5 +1,5 @@
 set.seed(12345)
-setwd('/home/axeek668/TDDE07')
+setwd('C:\\Users\\ekblo\\LiU\\tdde07')
 library(coda)
 
 #1
@@ -66,7 +66,7 @@ ebay_data = read.csv("eBayNumberOfBidderData.dat", header = TRUE, sep = "")
 
 #a
 beta_model = glm(formula=nBids ~ PowerSeller + VerifyID + Sealed + Minblem + MajBlem + LargNeg + LogBook + MinBidShare, data=ebay_data, family=poisson())
-
+print(beta_model)
 #b
 library(mvtnorm)
 #prior draws
@@ -153,7 +153,6 @@ qplot(nBidders, geom="histogram")
 mu = 13
 sigma_sqr = 3
 T = 300
-phi = 0.1
 
 ar_process <- function(phi) {
   X = c()
@@ -164,11 +163,14 @@ ar_process <- function(phi) {
   return(X)
 }
 
-X = ar_process(-0.0001)
-plot(X)
+plot(ar_process(-1))
+plot(ar_process(1))
+plot(ar_process(0.1))
+plot(ar_process(-0.0001))
 
 
 #b
+#i)
 x = ar_process(0.2)
 y = ar_process(0.95)
 
@@ -207,20 +209,19 @@ fit_y <- stan(model_code=StanModel, data=data_2, warmup=warmup,iter=niter,chains
 print(fit_y,digits_summary=3)
 
 
-#c
+#ii)
 # Extract posterior samples
 postDraws_x <- extract(fit_x)
 postDraws_y <- extract(fit_y)
 
-# Do traceplots of the first chain
-#plot joint posterior
-par(mfrow = c(1,1))
 
+#plot joint posterior and convergence
 plot(postDraws_x$mu, postDraws_x$phi)
+plot(postDraws_x$mu, type='l')
+plot(postDraws_x$phi, type='l')
+plot(postDraws_x$sigma_sqr, type='l')
 
-plot(postDraws_x$mu)
-plot(postDraws_x$phi)
-
-
-# Do automatic traceplots of all chains
-traceplot(fit_x)
+plot(postDraws_y$mu, postDraws_y$phi)
+plot(postDraws_y$mu, type='l')
+plot(postDraws_y$phi, type='l')
+plot(postDraws_y$sigma_sqr,type='l')
