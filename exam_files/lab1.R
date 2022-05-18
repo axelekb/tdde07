@@ -43,14 +43,13 @@ x = log(x/(1-x))
 plot(density(x))
 
 # --------------------------------------------------------------------------------------------------------------
-
 # 2.a)
 nDraws = 10000
 mu = 3.5
 sample = c(33, 24, 48, 32, 55, 74, 23, 76, 17)
 n = as.numeric(length(sample))
 
-#drawing sigma_sq (posterior) from inv-chi(n,tau_sq)
+#drawing sigma_sq (posterior) from inv-chi(n,tau_sq), (tau_sq is prior variance for sigma_sq)
 tau_sq = sum((log(sample) - mu)^2)/n
 x = rchisq(nDraws, n)
 sigma_sq = n * tau_sq / x
@@ -81,21 +80,26 @@ highest_densites = density[1:sum(density[,3]<0.95),1]
 min(highest_densites)
 max(highest_densites)
 
+# ------------------------------------------------------------------------------------------------------------
 # 3.a)
 # p(??|y, ?) ??? p(y|?, ??) * p(??)
-x = c(1.83, 2.02, 2.33, -2.79, 2.07, 2.02, -2.44, 2.14, 2.54, 2.23)
+data = c(1.83, 2.02, 2.33, -2.79, 2.07, 2.02, -2.44, 2.14, 2.54, 2.23)
 lambda = 1
-kappas = seq(0.01, 10, 0.01)
 mu = 2.51
 
-likelihood = c()
-prior = c()
-for (kappa in seq(0.01, 10, 0.01)){
-  likelihood = append(likelihood, prod(exp(kappa * cos(x - mu))/(2 * pi * besselI(kappa, 0))))
-  prior = append(prior, lambda * exp(-lambda * kappa))
-}
+#the values of kappa to evaluate
+kappas = seq(0.01, 10, 0.01)
+
+#prior k ~ exp(lambda), so the prior pdf = lambda * e^-(lambda * x), calculated for each kappa
+prior = sapply(kappas, function(x) lambda*exp(-lambda * x))
+
+#likelihood according to the pdf in the instructions, multiplied over all data values, calculated for each kappa
+likelihood = sapply(kappas, function(x) prod(exp(x * cos(data - mu))/(2 * pi * besselI(x, 0))))
+
 posterior = likelihood * prior
-plot(kappas,posterior/(sum(posterior)*0.01), ylab="Posterior probability", xlab="Kappa", type="l")
+
+plot(kappas, posterior/(sum(posterior)*0.01), ylab="Posterior probability", xlab="Kappa", type="l")
 
 # 3.b)
+#looking for the kappa value with the highest probability
 kappas[which.max(posterior)]
