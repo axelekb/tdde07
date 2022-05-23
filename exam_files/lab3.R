@@ -1,28 +1,26 @@
 set.seed(12345)
 setwd('C:\\Users\\ekblo\\LiU\\tdde07')
-library(coda)
 
 #1
-data = readRDS("Precipitation.rds")
+data = readRDS("\\\\ad.liu.se\\home\\axeek668\\TDDE07\\exam_files\\Precipitation.rds")
 log_data = log(data)
 nDraws = 1000
 
 #a
-
-gibbsDraws = matrix(0, nDraws, 2)
-mu_0 = 5
+mu_0 = 1
 sigma_sqr_0 = 10
 tau_sqr_0 = 5 #if tau big less sure about prior
 n = length(data)
 v_0 = 4
 
-sigma_sqr = sigma_sqr_0
+# initialising sigma_sqr
+sigma_sqr = 1
 gibbs_matrix = matrix(0, nDraws, 2)
 
 #Gibbs sampling
 for (i in 1:nDraws) {
-  #necessary parameters to draw mu, formulas from page 28
-    w = (n / sigma_sqr) / ((n / sigma_sqr) + 1 / tau_sqr_0)
+    #necessary parameters to draw mu (as in case with normal data, normal prior and known variance since we assume theta2 (sigma_sqr) to be known)
+    w = (n / sigma_sqr) / (n / sigma_sqr + 1 / tau_sqr_0)
     mu_n = w * mean(log_data) + (1 - w) * mu_0
     tau_sqr_n = 1 / (n / sigma_sqr + 1 / tau_sqr_0)
     
@@ -30,7 +28,7 @@ for (i in 1:nDraws) {
     mu = rnorm(1, mean = mu_n, sd = tau_sqr_n)
     gibbs_matrix[i, 1] = mu
     
-    #necessary parameters to draw sigma_sqr, formulas from page 44
+    #necessary parameters to draw sigma_sqr
     v_n = v_0 + n
     
     #draw sigma_sqr (theta2)
@@ -39,11 +37,12 @@ for (i in 1:nDraws) {
     
 }
 
-
-#inefficiency factor
-
 plot(gibbs_matrix[,1], main="mu", type="l")
 plot(gibbs_matrix[,2], main="sigma_sqr", type="l")
+
+
+#effective sample size and inefficiency factor 
+library(coda)
 effectiveSize(gibbs_matrix[,1])
 effectiveSize(gibbs_matrix[,2])
 
@@ -53,20 +52,24 @@ auto_sigma_sqr = acf(gibbs_matrix[,2])
 1 + 2 * sum(auto_sigma_sqr$acf[-1])
 
 #b
-simulated_draws = matrix(0,nDraws-100, 1)
-for (i in 100:nDraws) {
-  simulated_draws[i] = rnorm(1, gibbs_matrix[i,1], gibbs_matrix[i,2])
+plot(density(data))
+
+#predictive draws, one draw for each draw of mu and sigma_sqr from the gibbs sampling
+cut = 100 # cut away the first 100 simulations from gibbs due to convergence (burn-in?)
+simulated_draws = matrix(0,nDraws-cut, 1)
+for (i in 1:nDraws-cut) {
+  simulated_draws[i] = rnorm(1, gibbs_matrix[i+cut,1], gibbs_matrix[i+cut,2])
 }
+lines(density(exp(simulated_draws)), col = "red")
 
-plot(density(exp(simulated_draws)), col = "red", xlim = c(-5, 60))
-lines(density(data))
-
+# ------------------------------------------------------------------------------------------------------ 
 #2
 ebay_data = read.csv("eBayNumberOfBidderData.dat", header = TRUE, sep = "")
 
 #a
-beta_model = glm(formula=nBids ~ PowerSeller + VerifyID + Sealed + Minblem + MajBlem + LargNeg + LogBook + MinBidShare, data=ebay_data, family=poisson())
-print(beta_model)
+linear_model = glm(formula=nBids ~ PowerSeller + VerifyID + Sealed + Minblem + MajBlem + LargNeg + LogBook + MinBidShare, data=ebay_data, family=poisson())
+summary(linear_model)
+# coefficients with p-value below 0.05 are considered significant, there are 6 in this case
 #b
 library(mvtnorm)
 #prior draws
@@ -76,12 +79,10 @@ Sigma = 100 * solve(t(X)%*%X)
 mu = matrix(0, 9, 1)
 initVal = numeric(9)
   
-  
-LogPostPoisson <- function(betas,y,X,mu,Sigma){ #from lecture
-  linPred <- (X%*%betas);
-  logLik <- sum(y*linPred- exp(linPred))
-  logPrior <- dmvnorm(betas, mu, Sigma, log=TRUE);
-  
+LogPostPoisson <- function(betas,y,X,prior_mean,prior_sd){
+  linPred <- (X%*%betas)
+  logLik <- sum(y*linPred- exp(linPred)) # log-likelihood for the poisson regression
+  logPrior <- dmvnorm(betas, prior_mean, prior_sd, log=TRUE) # normal prior
   return(logLik + logPrior)
   }
   
