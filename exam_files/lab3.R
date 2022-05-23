@@ -55,7 +55,7 @@ auto_sigma_sqr = acf(gibbs_matrix[,2])
 plot(density(data))
 
 #predictive draws, one draw for each draw of mu and sigma_sqr from the gibbs sampling
-cut = 100 # cut away the first 100 simulations from gibbs due to convergence (burn-in?)
+cut = 100 # cut away the first 100 simulations from gibbs due to late convergence (warmup)
 simulated_draws = matrix(0,nDraws-cut, 1)
 for (i in 1:nDraws-cut) {
   simulated_draws[i] = rnorm(1, gibbs_matrix[i+cut,1], gibbs_matrix[i+cut,2])
@@ -73,50 +73,53 @@ summary(linear_model)
 #b
 library(mvtnorm)
 #prior draws
-X = as.matrix(ebay_data[,-1])
-y = ebay_data$nBids
-Sigma = 100 * solve(t(X)%*%X)
-mu = matrix(0, 9, 1)
-initVal = numeric(9)
+
   
 LogPostPoisson <- function(betas,y,X,prior_mean,prior_sd){
   linPred <- (X%*%betas)
   logLik <- sum(y*linPred- exp(linPred)) # log-likelihood for the poisson regression
   logPrior <- dmvnorm(betas, prior_mean, prior_sd, log=TRUE) # normal prior
   return(logLik + logPrior)
-  }
-  
+}
+
+X = as.matrix(ebay_data[,-1])
+y = ebay_data$nBids
+
+#prior parameters
+Sigma = 100 * solve(t(X)%*%X)
+mu = matrix(0, 9, 1)
+
+initVal = numeric(9)
+#maximising the posterior prob for the betas, to find the posterior mode and hessian
 optimRes = optim(initVal,LogPostPoisson, gr=NULL, y, X, mu, Sigma, method=c("BFGS"), control=list(fnscale=-1), hessian=TRUE)
 
 beta_tilde = optimRes$par
 JInv = solve(-optimRes$hessian)
 
 nDraws = 1000
+#making the posterior beta draws from the approx. multivariate normal, using mode and JInv calculated above
 betas_posterior = rmvnorm(nDraws, beta_tilde, JInv)
 plot(density(betas_posterior[,9]))
 
 #c
-
-LogPostPoisson <- function(theta,y,X,mu,Sigma){ #from lecture
+LogPostPoisson <- function(theta,y,X,prior_mean,prior_sd){
   linPred <- (X%*%t(theta));
   logLik <- sum(y*linPred- exp(linPred))
-  logPrior <- dmvnorm(theta, mu, Sigma, log=TRUE);
-  
+  logPrior <- dmvnorm(theta, prior_mean, prior_sd, log=TRUE);
   return(logLik + logPrior)
 }
 
-metropolisRandomWalk <- function(c, SIGMA, fcn, ...) { #... = y, X, mu
-  n_param = as.numeric(dim(SIGMA)[1])
+metropolisRandomWalk <- function(c, proposal_sigma, fcn, ...) { #... = y, X, prior mean, prior sigma
+  n_param = as.numeric(dim(proposal_sigma)[1])
   theta = matrix(0,1,n_param);
   theta_matrix = matrix(0, n_param, nDraws)
   for (i in 1:nDraws) {
-    theta_proposal = rmvnorm(1, theta, c*SIGMA) #step 1
+    theta_proposal = rmvnorm(1, theta, c*proposal_sigma) #sample proposal
+    logPost_old = fcn(theta, ...) #posterior probability for old theta
+    logPost_new = fcn(theta_proposal, ...) #posterior probability for proposal theta
+    alpha = min(1, exp(logPost_new - logPost_old)) #acceptance probability
     
-    logPost_old = fcn(theta, ...) #step 2
-    logPost_new = fcn(theta_proposal, ...) # pass them here
-    alpha = min(1, exp(logPost_new - logPost_old))
-    
-    comparer = runif(1,0,1) #step 3
+    comparer = runif(1,0,1) #with probability alpha, set theta_i = theta_proposal, theta_i-1 otherwise (i.e. no update)
     if (alpha >= comparer) { 
       theta = theta_proposal
     }
@@ -127,28 +130,42 @@ metropolisRandomWalk <- function(c, SIGMA, fcn, ...) { #... = y, X, mu
 }
 set.seed(12345)
 nDraws = 1000
-mu = matrix(0, 9, 1)
 X = as.matrix(ebay_data[,-1])
 y = ebay_data$nBids
-Sigma = 100 * solve(t(X)%*%X)
-betas = metropolisRandomWalk(1, JInv, LogPostPoisson, y, X, mu, Sigma)
-plot(betas[9,], type="l") #plot 9th row (MinBidShare)
+
+prior_mean = matrix(0, 9, 1)
+prior_sd = 100 * solve(t(X)%*%X)
+
+c = 1
+betas = metropolisRandomWalk(c, JInv, LogPostPoisson, y, X, prior_mean, prior_sd)
+
+par(mfrow = c(3,3))
+plot(betas[1,], type="l")
+plot(betas[2,], type="l")
+plot(betas[3,], type="l")
+plot(betas[4,], type="l")
+plot(betas[5,], type="l")
+plot(betas[6,], type="l")
+plot(betas[7,], type="l")
+plot(betas[8,], type="l")
+plot(betas[9,], type="l") 
+#after roughly 400 iterations, all parameters have converged
 
 #d
-
-Xd = matrix(c(1, 1, 0, 1, 0, 1, 0, 1.2, 0.8), 9, 1)
+X = matrix(c(1, 1, 0, 1, 0, 1, 0, 1.2, 0.8), 1, 9)
 nBidders = c()
-count = 0
-for (i in 1:nDraws) {
-  nBidders[i] = rpois(1, exp(Xd%*%t(betas[,i])))
-
+cut = 400
+for (i in 1:nDraws-cut) {
+  nBidders[i] = rpois(1, exp(t(X) %*% betas[,i + cut]))
 }
-length(nBidders[nBidders < 1]) / nDraws
-max(nBidders)
-plot(hist(nBidders, breaks=10))
-library(ggplot2)
-qplot(nBidders, geom="histogram")
+length(nBidders[nBidders == 0]) / nDraws #using the predictive draws to calculate p(y_new=0|y)
 
+dev.off()
+hist(nBidders) # histogram showing wrong values on y-axis??
+library(ggplot2)
+qplot(nBidders, geom="histogram") # this is correct
+
+# -----------------------------------------------------------------------------------------------------------
 #3
 #a
 mu = 13
