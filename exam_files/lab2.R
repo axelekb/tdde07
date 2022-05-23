@@ -93,7 +93,7 @@ lines(data$time, top_95, col="blue")
 
 #1c
 #derivate of f_time w.r.t. time: B1 + 2B2*time = 0 => time = -B1/2B2 = x_tilde
-#using this with the posterior draws of B1 and B2 to compute the posterior draws for x_tilde
+#using this with the posterior draws of B1 and B2 to compute the posterior draws of x_tilde
 x_tilde_draws = -draws$betas[,2] / (2*draws$betas[,3])
 plot(density(365 * x_tilde_draws), xlab='x_tilde * 365', main='x_tilde posterior distribution')
 
@@ -101,59 +101,67 @@ plot(density(365 * x_tilde_draws), xlab='x_tilde * 365', main='x_tilde posterior
 #2a
 library(mvtnorm)
 set.seed(12345)
-data = read.csv("WomenAtWork.dat", header = TRUE, sep = "")
-t = 5
-Npar = 7 #matrix size
-Sigma = t^2*diag(Npar)
-X = as.matrix(data[,-1]) #all rows not first col
+data = read.csv("\\\\ad.liu.se\\home\\axeek668\\TDDE07\\exam_files\\WomenAtWork.dat", header = TRUE, sep = "")
+
+#setting parameters
+tao = 5
 nDraws = 1000
-mu <- as.matrix(rep(0,Npar))
-initVal = matrix(0, Npar, 1)
+
+X = as.matrix(data[,-1])
 y = data$Work
 
-LogPostLogistic <- function(betas,y,X,mu,Sigma){ #from lecture
-  linPred <- X%*%betas;
-  logLik <- sum( linPred*y - log(1 + exp(linPred)) );
+Npar = as.numeric(dim(X)[2])
+initVal = matrix(0, Npar, 1)
+
+#function for returning something proportional to the log-posterior for the betas that are inputted
+LogPostLogistic <- function(betas,y,X,prior_mean,prior_sigma){ 
+  linPred <- X %*% betas;
+  logLik <- sum(linPred*y - log(1 + exp(linPred)));
   #if (abs(logLik) == Inf) logLik = -20000; # Likelihood is not finite, stear the optimizer away from here!
-  logPrior <- dmvnorm(betas, mu, Sigma, log=TRUE);
-  
+  logPrior <- dmvnorm(betas, prior_mean, prior_sigma, log=TRUE);
   return(logLik + logPrior)
 }
 
-betas = rmvnorm(nDraws, mu, t*diag(Npar))
-betaPrior = dmvnorm(X, mu, prior_sigma)
-#par = posterior mode
-optimRes = optim(initVal,LogPostLogistic, gr=NULL, y, X,mu, Sigma, method=c("BFGS"), control=list(fnscale=-1), hessian=TRUE)
-#names(optimRes$par) = colnames(X)
+#searching for beta_tilde and JInv by maximizing the posterior probability, with help of the function above
+#using prior mean = 0 and prior sigma = tao^2*I for betas, according to instructions
+optimRes = optim(initVal,LogPostLogistic, gr=NULL, y, X, as.matrix(rep(0,Npar)), tao^2*diag(Npar), method=c("BFGS"), control=list(fnscale=-1), hessian=TRUE)
+
 JInv = solve(-optimRes$hessian)
 beta_tilde = optimRes$par
+
+#making the posterior draws
 betas_posterior = rmvnorm(nDraws, beta_tilde, JInv)
 
-#95% for NSmallChild
-bottom_95_child = quantile(betas_posterior[,6],0.025)
-top_95_child = quantile(betas_posterior[,6],0.975)
+#95%  equal tail posterior probability interval for NSmallChild
+bottom_95 = quantile(betas_posterior[,6],0.025)
+top_95 = quantile(betas_posterior[,6],0.975)
 
-glm.model = glm(Work~0+., data = data, family = binomial)
+#maximum likelihood estimate for comparison
+ml_estimate_model = glm(Work~0+., data = data, family = binomial)
+ml_estimate_model$coefficients["NSmallChild"]
 
 #b
 set.seed(12345)
-X_43 = c(1, 20, 12, 8, 43, 1, 1) #woman described in lab
-probs_woman <- function(X, nDraws, beta_tilde, JInv) {
+X = c(1, 20, 12, 8, 43, 0, 2) #woman described in lab
+
+posterior_draws <- function(X, nDraws, beta_tilde, JInv) {
+  #using the approximated normal posterior for beta done in a)
   betas_posterior = rmvnorm(nDraws, beta_tilde, JInv)
-  probs = exp(t(X_43) %*% t(betas_posterior)) / (1 + exp(t(X_43) %*% t(betas_posterior)))
-  return(probs)
+  #the logistic regression model, with the posterior betas and X plugged in
+  posterior_predictive = exp(t(X) %*% t(betas_posterior)) / (1 + exp(t(X) %*% t(betas_posterior)))
+  return(posterior_predictive)
 }
 
-probs = probs_woman(X_43, nDraws, beta_tilde, JInv)
-plot(density(probs))
+woman_posterior_draws = posterior_draws(X, nDraws, beta_tilde, JInv)
+plot(density(woman_posterior_draws))
 
 #c
 set.seed(12345)
 women_working <- function(X, nDraws, beta_tilde, JInv) {
   betas_posterior = rmvnorm(nDraws, beta_tilde, JInv)
-  probs = exp(t(X_43) %*% t(betas_posterior)) / (1 + exp(t(X_43) %*% t(betas_posterior)))
-  probs_avg = mean(probs)
-  women_working = rbinom(nDraws, 11, probs_avg)
+  posterior_predictive = exp(t(X) %*% t(betas_posterior)) / (1 + exp(t(X) %*% t(betas_posterior)))
+  posterior_mean = mean(posterior_predictive)  #using the posterior mean as estimated probability that the woman works
+  women_working = rbinom(nDraws, 11, posterior_mean)
   return(women_working)
 }
 women_working = women_working(X, nDraws, beta_tilde, JInv)
