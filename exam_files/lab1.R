@@ -90,7 +90,7 @@ mu = 2.51
 #the values of kappa to evaluate
 kappas = seq(0.01, 10, 0.01)
 
-#prior k ~ exp(lambda), so the prior pdf = lambda * e^-(lambda * x), calculated for each kappa
+#prior k ~ exp(lambda), so the prior pdf = lambda * e^-(lambda * k), calculated for each kappa
 prior = sapply(kappas, function(x) lambda*exp(-lambda * x))
 
 #likelihood according to the pdf in the instructions, multiplied over all data values, calculated for each kappa
