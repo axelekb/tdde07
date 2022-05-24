@@ -163,8 +163,8 @@ set.seed(12345)
 women_working <- function(X, nDraws, beta_tilde, JInv) {
   betas_posterior = rmvnorm(nDraws, beta_tilde, JInv)
   posterior_predictive = exp(t(X) %*% t(betas_posterior)) / (1 + exp(t(X) %*% t(betas_posterior)))
-  posterior_mean = mean(posterior_predictive)  #using the posterior mean as estimated probability that the woman works
-  women_working = rbinom(nDraws, 11, posterior_mean)
+  #posterior_mean = mean(posterior_predictive)  #using the posterior mean as estimated probability that the woman works?
+  women_working = rbinom(nDraws, 11, posterior_predictive)
   return(women_working)
 }
 women_working = women_working(X, nDraws, beta_tilde, JInv)
