@@ -156,7 +156,7 @@ X = matrix(c(1, 1, 0, 1, 0, 1, 0, 1.2, 0.8), 1, 9)
 nBidders = c()
 cut = 400
 for (i in 1:nDraws-cut) {
-  nBidders[i] = rpois(1, exp(t(X) %*% betas[,i + cut]))
+  nBidders[i] = rpois(1, exp(t(X) %*% betas[,i + cut])) #for each draw of betas, draw predictive y_new given those betas
 }
 length(nBidders[nBidders == 0]) / nDraws #using the predictive draws to calculate p(y_new=0|y)
 
@@ -172,7 +172,7 @@ mu = 13
 sigma_sqr = 3
 T = 300
 
-ar_process <- function(phi) {
+ar_1_process <- function(phi) {
   X = c()
   X[1] = mu
   for (i in 2:T) {
@@ -181,16 +181,16 @@ ar_process <- function(phi) {
   return(X)
 }
 
-plot(ar_process(-1))
-plot(ar_process(1))
-plot(ar_process(0.1))
-plot(ar_process(-0.0001))
+plot(ar_1_process(-1))
+plot(ar_1_process(1))
+plot(ar_1_process(0.1))
+plot(ar_1_process(-0.0001))
 
 
 #b
 #i)
-x = ar_process(0.2)
-y = ar_process(0.95)
+x = ar_1_process(0.2)
+y = ar_1_process(0.95)
 
 library(rstan)
 #StanModel = stan_model('3d.stan')
@@ -210,7 +210,7 @@ model {
   mu ~ normal(0,10); // Normal with mean 0, st.dev. 100
   sigma_sqr ~ scaled_inv_chi_square(1,2); // Scaled-inv-chi2 with nu 1,sigma 2
   for(i in 2:T){
-    y[i] ~ normal(mu + phi*y[i-1], sqrt(sigma_sqr));
+    y[i] ~ normal(mu + phi*(y[i-1]-mu), sqrt(sigma_sqr));
   }
 }'
 
@@ -226,6 +226,7 @@ fit_y <- stan(model_code=StanModel, data=data_2, warmup=warmup,iter=niter,chains
 # Print the fitted model
 print(fit_y,digits_summary=3)
 
+#in general, smaller variance in estimated parameters when phi=0.2 and following this, a parameter estimation that works better in general 
 
 #ii)
 # Extract posterior samples
