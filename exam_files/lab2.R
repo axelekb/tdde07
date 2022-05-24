@@ -97,6 +97,9 @@ lines(data$time, top_95, col="blue")
 x_tilde_draws = -draws$betas[,2] / (2*draws$betas[,3])
 plot(density(365 * x_tilde_draws), xlab='x_tilde * 365', main='x_tilde posterior distribution')
 
+#1d
+# by using smoothness/shrinkage/regularization prior
+# betas|sigma_sqr ~ N(0,sigma_sqr/lambda), i.e., mu_0=0 & omega_0=lambda*I
 # --------------------------------------------------------------------------------------------------------------
 #2a
 library(mvtnorm)
