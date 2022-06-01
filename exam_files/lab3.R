@@ -64,7 +64,7 @@ lines(density(exp(simulated_draws)), col = "red")
 
 # ------------------------------------------------------------------------------------------------------ 
 #2
-ebay_data = read.csv("eBayNumberOfBidderData.dat", header = TRUE, sep = "")
+ebay_data = read.csv("\\\\ad.liu.se\\home\\axeek668\\TDDE07\\exam_files\\eBayNumberOfBidderData.dat", header = TRUE, sep = "")
 
 #a
 linear_model = glm(formula=nBids ~ PowerSeller + VerifyID + Sealed + Minblem + MajBlem + LargNeg + LogBook + MinBidShare, data=ebay_data, family=poisson())
@@ -161,7 +161,7 @@ for (i in 1:nDraws-cut) {
 length(nBidders[nBidders == 0]) / nDraws #using the predictive draws to calculate p(y_new=0|y)
 
 dev.off()
-hist(nBidders) # histogram showing wrong values on y-axis??
+hist(nBidders, right="F") # histogram showing wrong values on y-axis??
 library(ggplot2)
 qplot(nBidders, geom="histogram") # this is correct
 

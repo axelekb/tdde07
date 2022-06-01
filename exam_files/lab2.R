@@ -168,4 +168,4 @@ women_working <- function(X, nDraws, beta_tilde, JInv) {
   return(women_working)
 }
 women_working = women_working(X, nDraws, beta_tilde, JInv)
-plot(hist(women_working))
+hist(women_working, right='F')

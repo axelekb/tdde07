@@ -10,6 +10,7 @@ draws = matrix(seq(from=10, to= 10000, by=10))
 
 #function for making the draws and calculate mean and sd of theta
 draw = function(nDraws, s, n, f, a0, b0){
+  #set.seed(12345)
   posterior = rbeta(nDraws, a0 + s, b0 + f)
   mean = mean(posterior)
   sd = sd(posterior)
@@ -22,7 +23,6 @@ means_sd = apply(draws, 1, draw, s=s, n=n, f=f, a0=a0, b0=b0)
 #plot results
 plot(means_sd[1,])
 plot(means_sd[2,])
-
 
 # 1.b)
 nDraws = 10000
@@ -82,7 +82,7 @@ max(highest_densites)
 
 # ------------------------------------------------------------------------------------------------------------
 # 3.a)
-# p(k|y, mu) cx p(y|k, mu) * p(k) cx exp(k*cos(u-mu))/2*pi*I0(k) * exp(-k)
+# p(k|y, mu) cx p(y|k, mu) * p(k) cx exp(k*cos(y-mu))/2*pi*I0(k) * exp(-k)
 data = c(1.83, 2.02, 2.33, -2.79, 2.07, 2.02, -2.44, 2.14, 2.54, 2.23)
 lambda = 1
 mu = 2.51
